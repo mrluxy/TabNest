@@ -16,3 +16,9 @@ With TabNest, you can:
 TabNest is designed for multitasking professionals, developers, researchers, students, and anyone who regularly uses multiple tabs in Chrome. With its simple and intuitive interface, you can manage your workspaces effortlessly and focus on what truly matters - your work.
 
 Enhance your browsing experience with TabNest. Try it today and discover a new way of browsing.
+
+## How to install
+
+## How to use it
+
+## A peek to the future updates
