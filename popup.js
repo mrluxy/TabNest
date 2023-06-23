@@ -6,7 +6,7 @@ document.getElementById('saveButton').addEventListener('click', function() {
       loadWorkspaces();
     });
   } else {
-    alert('Veuillez entrer un nom pour le workspace');
+    alert('You need to enter a name to create Workspace');
   }
 });
 
@@ -26,12 +26,12 @@ function loadWorkspaces() {
     workspaceCount.textContent = workspaces.length;
     for (let workspace of workspaces) {
       let li = document.createElement('li');
-      li.textContent = workspace.name + ' (' + workspace.urls.length + ' onglets)';
+      li.textContent = workspace.name + ' (' + workspace.urls.length + ' tabs)';
       if (workspace.name === currentWorkspace) {
         li.classList.add('selected');
       }
       let deleteButton = document.createElement('button');
-      deleteButton.textContent = 'Supprimer';
+      deleteButton.textContent = 'Delete';
       deleteButton.addEventListener('click', function() {
         let updatedWorkspaces = workspaces.filter(ws => ws.name !== workspace.name);
         chrome.storage.local.set({workspaces: updatedWorkspaces}, function() {
