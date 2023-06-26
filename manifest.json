@@ -1,16 +1,33 @@
-{
-    "manifest_version": 2,
+
+  
+  {
+    "manifest_version": 3,
     "name": "TabNest",
     "version": "1.0",
-    "background": {
-      "scripts": ["background.js"],
-      "persistent": false
-    },
-    "browser_action": {
+    "description": "Make your browser follow your focus.",
+    "permissions": [
+      "storage",
+      "tabs",
+      "windows"
+    ],
+    "action": {
       "default_title": "TabNest",
-      "default_popup": "popup.html"
+      "default_popup": "./popup/popup.html"
     },
-    "permissions": ["tabs", "storage"],
-    "web_accessible_resources": ["tab.html"]
+    "background": {
+      "service_worker": "background.js"
+    },
+    "content_scripts": [
+      {
+        "matches": ["<all_urls>"],
+        "js": ["content.js"]
+      }
+    ],
+    "web_accessible_resources": [
+      {
+        "resources": ["tab.html", "tab.js"],
+        "matches": ["<all_urls>"]
+      }
+    ]
   }
   

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    html {
+      border-radius: 0 0 10px 10px;
+      box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.1);
+      background-color: white;
+    }
+    body {
+      width: 350px;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+    }
+    h2 {
+      color: #333;
+    }
+    button {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #workspaceList {
+      list-style-type: none;
+      padding: 0;
+    }
+    #workspaceList li {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 8px;
+    }
+    .selected {
+      border-radius: 5px;
+      background-color: #007bff2c;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>TabNest</h2>
+  <input id="workspaceName" type="text" placeholder="Workspace's name">
+  <button id="saveButton">Save Workspace</button>
+  <h2>Saved workspaces (<span id="workspaceCount">0</span>)</h2>
+  <ul id="workspaceList"></ul>
+  <script src="popup.js"></script>
+</body>
+</html>

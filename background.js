@@ -1,138 +1,137 @@
-chrome.runtime.onStartup.addListener(function() {
-  // Envoyer un message à la fenêtre contextuelle
-  chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-    console.log("Startup")
-    chrome.tabs.sendMessage(tabs[0].id, { action: "startExtension" });
-  });
+//Liste des listeners
+
+//onStartup
+//Chargement des workspaces
+chrome.runtime.onStartup.addListener(() => {
+  chrome.tabs.create({url: 'https://example.com'}); // Remplacez 'https://example.com' par l'URL de votre choix
 });
 
-// Enregistrement d'un workspace
-function saveWorkspace(name, callback) {
-  chrome.tabs.query({currentWindow: true}, function(tabs) {
-    let urls = tabs.filter(tab => !tab.pinned && tab.url && !tab.pendingUrl).map(tab => tab.url);
-    let workspace = {name: name, urls: urls};
-    chrome.storage.local.get('workspaces', function(result) {
-      let workspaces = result.workspaces || [];
-      let index = workspaces.findIndex(ws => ws.name === name);
-      if (index !== -1) {
-        workspaces[index] = workspace; // Update existing workspace
-      } else {
-        workspaces.push(workspace); // Add new workspace
-      }
-      chrome.storage.local.set({workspaces: workspaces}, function() {
-        callback();
-      });
-    });
-  });
-}
-
-let isLoadingWorkspace = false;
-
-// Chargement d'un workspace
-function loadWorkspace(name, callback) {
-  chrome.storage.local.get('workspaces', function(result) {
-    let workspaces = result.workspaces || [];
-    let workspace = workspaces.find(ws => ws.name === name);
-    if (workspace) {
-      console.log(workspace)
-      let urls = workspace.urls;
-      // Fermer tous les onglets non épinglés
-      chrome.tabs.query({currentWindow: true}, function(tabs) {
-        let nonPinnedTabs = tabs.filter(tab => !tab.pinned);
-        let nonPinnedTabIds = nonPinnedTabs.map(tab => tab.id);
-        isLoadingWorkspace = true;  // Ajout du drapeau
-        chrome.tabs.remove(nonPinnedTabIds, function() {
-          console.log(["Suppression d'onglet en cours"])
-          
-          // Ouvrir les onglets du workspace en arrière-plan
-          let indexCurrTab = 0;
-          setTimeout(function() {
-            for (let url of urls) {
-              let isActive = (indexCurrTab === 0) ? true : false;
-              console.log(["Chargement d'onglet en cours", url, isActive])
-              if (isActive) {
-                // Ajouter un délai avant de créer le premier onglet
-                  chrome.tabs.create({url: url, active: isActive});
-              } else {
-                chrome.tabs.create({url: url, active: isActive});
-              }
-              indexCurrTab++;
-            }
-            isLoadingWorkspace = false;  // Retrait du drapeau
-          }, 100);
-          callback();
-        });
-      });
-    }
-  });
-}
-
-// Écoute des messages pour enregistrer ou charger des workspaces
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  if (request.action == 'saveWorkspace') {
-    saveWorkspace(request.name, function() {
-      sendResponse({status: 'Workspace enregistré'});
-    });
-  } else if (request.action == 'loadWorkspace') {
-    loadWorkspace(request.name, function() {
-      sendResponse({status: 'Workspace chargé'});
-      chrome.storage.local.set({currentWorkspace: request.name});
-    });
-  }
-  return true;  // Pour garder le canal de réponse ouvert pour sendResponse
-});
-
-// Écoute des mises à jour des onglets
+//onActivated
+//Chargement du workspace sélectionné
 chrome.tabs.onActivated.addListener(function(activeInfo) {
+  // Obtenir des informations sur l'onglet actif
   chrome.tabs.get(activeInfo.tabId, function(tab) {
-    // Vérifier si l'onglet existe et est épinglé
-    if (tab && tab.pinned) {
-      let name = tab.title;
-      // Vérifier si le workspace à charger est le même que le workspace actuel
-      chrome.storage.local.get('currentWorkspace', function(result) {
-        let currentWorkspace = result.currentWorkspace;
-        if (name !== currentWorkspace) {
-          // Stocker le nom du workspace actuellement ouvert
-          chrome.storage.local.set({currentWorkspace: name}, function() {
-            loadWorkspace(name, function() {
-              // console.log('Workspace chargé : ' + name);
-            });
-          });
-        }
-      });
-    } else {
-      // console.log('L\'onglet n\'est pas épinglé ou n\'existe pas.');
-    }
+      // Vérifier si l'onglet est épinglé
+      if (tab.pinned) {
+          // Extraire le paramètre 'workspace' de l'URL de l'onglet
+          let urlParams = new URL(tab.url).searchParams;
+          let workspaceTitle = urlParams.get('workspace');
+
+          // Si le paramètre 'workspace' existe, exécuter 'loadCurrentWorkspace' avec ce paramètre
+          if (workspaceTitle) {
+              loadCurrentWorkspace(workspaceTitle);
+          }
+      }
   });
 });
 
-function saveCurrentWorkspace() {
-    chrome.storage.local.get('currentWorkspace', function(result) {
-        let name = result.currentWorkspace;
-        if (name) {
-            saveWorkspace(name, function() {
-                // console.log('Workspace sauvegardé : ' + name);
-            });
-        }
-    });
+function displayWorkspaces() {
+  // Récupérer le tableau 'workspaces' du localStorage
+  let workspaces = JSON.parse(localStorage.getItem('workspaces')) || [];
+
+  // Obtenir l'ID de l'extension
+  let extensionId = chrome.runtime.id;
+
+  // Pour chaque workspace, créer un nouvel onglet épinglé
+  workspaces.forEach(workspace => {
+      let url = `chrome-extension://${extensionId}?workspace=${encodeURIComponent(workspace.title)}`;
+      chrome.tabs.create({url: url, pinned: true});
+  });
 }
 
-chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
-  // Si l'URL de l'onglet a changé, que l'onglet n'est pas en cours de fermeture,
-  // et que nous ne sommes pas en train de charger un workspace, sauvegarder le workspace
-  if ('url' in changeInfo && tab && !tab.pendingUrl && !isLoadingWorkspace) {
-    console.log("Onglet mis à jour, update du workspace.")
-      saveCurrentWorkspace();
-  }
-});
+function createWorkspace(nom) {
+  // Récupérer le tableau 'workspaces' du localStorage
+  let workspaces = JSON.parse(localStorage.getItem('workspaces'));
 
-chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
-    // Lorsqu'un onglet est supprimé, sauvegarder le workspace
-    // Notez que vous ne pouvez pas vérifier si l'onglet est valide dans cet écouteur,
-    // car l'onglet a déjà été supprimé à ce stade.
-    if(!isLoadingWorkspace) {
-      console.log("Onglet fermé, update du workspace.")
-      saveCurrentWorkspace();
-    }
-    
-});
+  // Si 'workspaces' n'existe pas, initialiser un tableau vide
+  if (!workspaces) {
+      workspaces = [];
+  }
+
+  // Fonction pour générer une couleur aléatoire en hexadécimal
+  function getRandomColor() {
+      const letters = '0123456789ABCDEF';
+      let color = '#';
+      for (let i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+      }
+      return color;
+  }
+
+  // Créer un nouvel objet workspace avec une couleur aléatoire
+  let newWorkspace = {
+      title: nom,
+      tabs: [],
+      color: getRandomColor()
+  };
+
+  // Ajouter le nouvel objet workspace au tableau
+  workspaces.push(newWorkspace);
+
+  // Enregistrer le tableau mis à jour dans le localStorage
+  localStorage.setItem('workspaces', JSON.stringify(workspaces));
+}
+
+function loadCurrentWorkspace(title) {
+  // Récupérer le tableau 'workspaces' du localStorage
+  let workspaces = JSON.parse(localStorage.getItem('workspaces')) || [];
+  let workspace = workspaces.find(ws => ws.title === title);
+
+  // Récupérer ou créer le tableau 'window_workspaces' dans le localStorage
+  let windowWorkspaces = JSON.parse(localStorage.getItem('window_workspaces')) || [];
+
+  // Obtenir l'ID de la fenêtre actuelle
+  chrome.windows.getCurrent({populate: true}, function(currentWindow) {
+      // Vérifier si un objet avec l'ID de la fenêtre actuelle existe déjà
+      let windowWorkspace = windowWorkspaces.find(ww => ww.window === currentWindow.id);
+
+      if (windowWorkspace) {
+          // Mettre à jour le titre du workspace
+          windowWorkspace.title = title;
+      } else {
+          // Ajouter un nouvel objet avec l'ID de la fenêtre actuelle et le titre du workspace
+          windowWorkspaces.push({window: currentWindow.id, title: title});
+      }
+
+      // Enregistrer le tableau mis à jour dans le localStorage
+      localStorage.setItem('window_workspaces', JSON.stringify(windowWorkspaces));
+
+      // Supprimer tous les onglets non épinglés de la fenêtre actuelle
+      chrome.tabs.query({windowId: currentWindow.id, pinned: false}, function(tabs) {
+          let tabIds = tabs.map(tab => tab.id);
+          chrome.tabs.remove(tabIds, function() {
+              // Charger les onglets du workspace dans la fenêtre actuelle
+              if (workspace && workspace.tabs) {
+                  workspace.tabs.forEach((tabInfo, index) => {
+                      // Définir l'onglet actif uniquement pour le premier onglet
+                      let isActive = index === 0;
+                      chrome.tabs.create({windowId: currentWindow.id, url: tabInfo.url, active: isActive});
+                  });
+              }
+          });
+      });
+  });
+}
+
+
+function updateWorkspace() {
+  // Récupérer le tableau 'window_workspaces' du localStorage
+  let windowWorkspaces = JSON.parse(localStorage.getItem('window_workspaces')) || [];
+
+  // Obtenir l'ID de la fenêtre actuelle
+  chrome.windows.getCurrent({populate: true}, function(currentWindow) {
+      // Trouver le workspace actuellement ouvert dans cette fenêtre
+      let windowWorkspace = windowWorkspaces.find(ww => ww.window === currentWindow.id);
+
+      if (windowWorkspace) {
+          // Récupérer tous les onglets non épinglés de la fenêtre actuelle
+          chrome.tabs.query({windowId: currentWindow.id, pinned: false}, function(tabs) {
+              // Mettre à jour la propriété 'tabs' du workspace avec les onglets récupérés
+              windowWorkspace.tabs = tabs.map(tab => ({url: tab.url, title: tab.title}));
+
+              // Enregistrer le tableau 'window_workspaces' mis à jour dans le localStorage
+              localStorage.setItem('window_workspaces', JSON.stringify(windowWorkspaces));
+          });
+      }
+  });
+}
